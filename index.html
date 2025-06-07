@@ -272,7 +272,7 @@
 
         /* Mobile Menu Button */
         .mobile-menu-button {
-            display: none; /* Hidden on desktop */
+            display: none; /* Hidden on desktop by default */
             position: fixed; /* Use fixed for mobile for consistent placement */
             top: 10px;
             left: 10px;
@@ -295,6 +295,22 @@
         .mobile-menu-button:hover {
             background-color: #1f2a37; /* Slightly darker dark navy */
         }
+
+        /* Canvas Title for Mobile */
+        .canvas-title {
+            display: none; /* Hidden on desktop by default */
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 1.5em;
+            font-weight: 700;
+            color: var(--color-dark-navy);
+            text-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            z-index: 50; /* Below menu button, above canvas */
+            pointer-events: none; /* Allows drawing underneath */
+            opacity: 0.9;
+        }
+
 
         /* Overlay for when menu is open */
         .overlay {
@@ -338,16 +354,11 @@
                 box-shadow: 2px 0 10px rgba(0,0,0,0.3);
                 overflow-y: auto; /* Enable scrolling for tools if many */
                 z-index: 100; /* Default z-index for mobile panel */
-                /*
-                  IMPORTANT: This z-index might not be enough if the overlay
-                  also has a high z-index. We will dynamically adjust
-                  control-panel's z-index in JS when it's active.
-                */
             }
 
             .control-panel.active {
                 transform: translateX(0); /* Slide in */
-                z-index: 105; /* <<< CRUCIAL CHANGE: Make it higher than overlay (90) */
+                z-index: 105; /* Make it higher than overlay (90) */
             }
 
             .control-panel::after {
@@ -393,6 +404,10 @@
 
             .mobile-menu-button {
                 display: flex; /* Show menu button on mobile */
+            }
+
+            .canvas-title {
+                display: block; /* Show canvas title on mobile */
             }
         }
 
@@ -455,6 +470,7 @@
 
         <main class="canvas-container">
             <canvas id="drawingCanvas"></canvas>
+            <div class="canvas-title" id="canvasTitle">Alobin's ArtFlow</div>
         </main>
     </div>
     <div class="overlay" id="menuOverlay"></div>
@@ -476,6 +492,7 @@
             const mobileMenuButton = document.getElementById('mobileMenuButton');
             const controlPanel = document.getElementById('controlPanel');
             const menuOverlay = document.getElementById('menuOverlay');
+            const canvasTitle = document.getElementById('canvasTitle'); // New element
 
             let isDrawing = false;
             let currentColor = '#000000'; // Default color
@@ -504,6 +521,7 @@
                     saveState(); // Save the initial blank state
                 }
                 updateBrushPreview();
+                updateCanvasTitleVisibility(); // Check and set canvas title visibility
             }
 
             // --- Drawing Logic ---
@@ -673,10 +691,21 @@
                     // When menu is active, ensure it's on top of overlay
                     controlPanel.style.zIndex = '105'; // Higher than overlay (90) and menu button (100)
                     mobileMenuButton.style.zIndex = '106'; // Keep button on top of panel for closing
+                    canvasTitle.style.display = 'none'; // Hide title when menu is open
                 } else {
-                    // When menu is closed, reset z-index
+                    // When menu is closed, revert z-index
                     controlPanel.style.zIndex = ''; // Revert to default or media query z-index
                     mobileMenuButton.style.zIndex = '100'; // Reset to default
+                    updateCanvasTitleVisibility(); // Show title if on mobile and menu is closed
+                }
+            }
+
+            // --- Canvas Title Visibility (for mobile) ---
+            function updateCanvasTitleVisibility() {
+                if (window.innerWidth <= 900) {
+                    canvasTitle.style.display = 'block'; // Show on mobile
+                } else {
+                    canvasTitle.style.display = 'none'; // Hide on desktop
                 }
             }
 
@@ -717,8 +746,11 @@
             mobileMenuButton.addEventListener('click', toggleMobileMenu);
             menuOverlay.addEventListener('click', toggleMobileMenu); // Close menu when clicking overlay
 
-            // Responsive Canvas
-            window.addEventListener('resize', initCanvas);
+            // Responsive Canvas & UI
+            window.addEventListener('resize', () => {
+                initCanvas(); // Re-initialize canvas on resize
+                updateCanvasTitleVisibility(); // Adjust title visibility on resize
+            });
 
             // Initial setup
             initCanvas();
