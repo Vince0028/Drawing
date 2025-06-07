@@ -58,7 +58,7 @@
             flex-direction: column;
             gap: 25px;
             position: relative;
-            z-index: 10;
+            z-index: 10; /* Default z-index for desktop */
             transition: transform 0.3s ease-in-out; /* For mobile slide effect */
         }
 
@@ -255,8 +255,8 @@
             justify-content: center;
             align-items: center;
             background-color: var(--color-white);
-            padding: 20px;
-            box-sizing: border-box;
+            padding: 20px; /* Default padding for desktop */
+            box-sizing: border-box; /* Include padding in element's total width/height */
             position: relative;
         }
 
@@ -266,12 +266,14 @@
             box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
             cursor: crosshair;
             touch-action: none; /* Prevent browser touch actions like scrolling */
+            width: 100%; /* Take 100% of parent's content area */
+            height: 100%; /* Take 100% of parent's content area */
         }
 
         /* Mobile Menu Button */
         .mobile-menu-button {
             display: none; /* Hidden on desktop */
-            position: absolute;
+            position: fixed; /* Use fixed for mobile for consistent placement */
             top: 10px;
             left: 10px;
             background-color: var(--color-dark-navy);
@@ -286,12 +288,28 @@
             align-items: center;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
             cursor: pointer;
-            z-index: 100; /* Ensure it's above canvas */
+            z-index: 100; /* Ensure it's above canvas by default */
             transition: background-color 0.2s;
         }
 
         .mobile-menu-button:hover {
             background-color: #1f2a37; /* Slightly darker dark navy */
+        }
+
+        /* Overlay for when menu is open */
+        .overlay {
+            display: none; /* Hidden by default */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent black */
+            z-index: 90; /* Below menu, above canvas */
+        }
+
+        .overlay.active {
+            display: block;
         }
 
         /* Responsive Design */
@@ -319,10 +337,17 @@
                 padding: 20px 15px;
                 box-shadow: 2px 0 10px rgba(0,0,0,0.3);
                 overflow-y: auto; /* Enable scrolling for tools if many */
+                z-index: 100; /* Default z-index for mobile panel */
+                /*
+                  IMPORTANT: This z-index might not be enough if the overlay
+                  also has a high z-index. We will dynamically adjust
+                  control-panel's z-index in JS when it's active.
+                */
             }
 
             .control-panel.active {
                 transform: translateX(0); /* Slide in */
+                z-index: 105; /* <<< CRUCIAL CHANGE: Make it higher than overlay (90) */
             }
 
             .control-panel::after {
@@ -354,36 +379,21 @@
             }
 
             .canvas-container {
-                padding: 0; /* No padding, canvas takes full space */
-                min-height: 100vh; /* Canvas gets full viewport height */
+                padding: 0; /* Remove padding on mobile */
+                min-height: 100vh;
                 width: 100vw;
+                height: 100vh; /* Ensure it takes full height */
             }
 
             #drawingCanvas {
                 border-radius: 0; /* Full screen canvas */
-                width: 100vw;
-                height: 100vh;
+                width: 100%; /* Now truly 100% of the canvas-container's full size */
+                height: 100%; /* Now truly 100% of the canvas-container's full size */
             }
 
             .mobile-menu-button {
                 display: flex; /* Show menu button on mobile */
             }
-        }
-
-        /* Overlay for when menu is open */
-        .overlay {
-            display: none; /* Hidden by default */
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent black */
-            z-index: 90; /* Below menu, above canvas */
-        }
-
-        .overlay.active {
-            display: block;
         }
 
         /* Adjustments for very small phones */
@@ -475,10 +485,9 @@
 
             // --- Initialization ---
             function initCanvas() {
-                // Set canvas dimensions based on parent container
-                const container = canvas.parentElement;
-                canvas.width = container.clientWidth;
-                canvas.height = container.clientHeight;
+                // Set canvas dimensions based on its own computed CSS size
+                canvas.width = canvas.offsetWidth;
+                canvas.height = canvas.offsetHeight;
 
                 ctx.lineCap = 'round';
                 ctx.lineJoin = 'round';
@@ -659,11 +668,15 @@
             function toggleMobileMenu() {
                 controlPanel.classList.toggle('active');
                 menuOverlay.classList.toggle('active');
-                // Adjust z-index of mobile menu button to be above overlay when open
+                // Adjust z-index of mobile menu button and panel
                 if (controlPanel.classList.contains('active')) {
-                    mobileMenuButton.style.zIndex = '101';
+                    // When menu is active, ensure it's on top of overlay
+                    controlPanel.style.zIndex = '105'; // Higher than overlay (90) and menu button (100)
+                    mobileMenuButton.style.zIndex = '106'; // Keep button on top of panel for closing
                 } else {
-                    mobileMenuButton.style.zIndex = '100';
+                    // When menu is closed, reset z-index
+                    controlPanel.style.zIndex = ''; // Revert to default or media query z-index
+                    mobileMenuButton.style.zIndex = '100'; // Reset to default
                 }
             }
 
