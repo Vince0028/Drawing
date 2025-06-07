@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArtFlow Canvas</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* Color Palette */
+        :root {
+            --color-whitesmoke: #F5F5F5; /* Background */
+            --color-white: #FFFFFF; /* Canvas Background */
+            --color-dark-navy: #2C3E50; /* Control Panel Background */
+            --color-peter-river: #3498DB; /* Active Tool Highlight */
+            --color-alizarin-red: #E74C3C; /* Clear Button */
+            --color-text-light: #ECF0F1; /* Light text for dark backgrounds */
+            --color-text-dark: #34495E; /* Darker text for light backgrounds */
+        }
+
+        /* Global Styles */
+        body {
+            margin: 0;
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--color-whitesmoke);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden; /* Prevent body scroll */
+        }
+
+        .app-container {
+            display: flex;
+            width: 95vw;
+            height: 90vh;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            background-color: var(--color-white);
+            transform: perspective(1000px) rotateY(-2deg); /* Subtle 3D effect */
+            transform-origin: left;
+            transition: transform 0.3s ease-in-out;
+        }
+
+        .app-container:hover {
+            transform: perspective(1000px) rotateY(0deg); /* Straighten on hover */
+        }
+
+        /* Control Panel */
+        .control-panel {
+            background-color: var(--color-dark-navy);
+            color: var(--color-text-light);
+            width: 280px;
+            padding: 30px 20px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .control-panel::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: -20px; /* Overlap with canvas container */
+            bottom: 0;
+            width: 40px;
+            background: linear-gradient(to right, var(--color-dark-navy), rgba(44, 62, 80, 0));
+            pointer-events: none; /* Allow clicks to pass through */
+            transform: skewX(-5deg);
+        }
+
+        .app-title {
+            font-size: 2.2em;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 20px;
+            color: var(--color-peter-river);
+            letter-spacing: 1.5px;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+
+        .tool-section {
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 20px;
+        }
+
+        .tool-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .tool-section h3 {
+            font-size: 1.1em;
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: var(--color-peter-river);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        /* Color Palette */
+        .color-palette {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .color-box {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 3px solid transparent;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s ease-in-out;
+        }
+
+        .color-box:hover {
+            transform: scale(1.1);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+        }
+
+        .color-box.active {
+            border-color: var(--color-peter-river);
+            transform: scale(1.1);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+        }
+
+        .color-picker {
+            width: 100%;
+            height: 40px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            -webkit-appearance: none; /* Hide default color input styles */
+            appearance: none;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .color-picker::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+
+        .color-picker::-webkit-color-swatch {
+            border: none;
+            border-radius: 5px;
+        }
+
+        /* Brush Size */
+        .brush-size-display {
+            text-align: center;
+            font-size: 1.2em;
+            margin-bottom: 10px;
+            font-weight: bold;
+            color: var(--color-text-light);
+        }
+
+        .slider {
+            width: 100%;
+            -webkit-appearance: none;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            outline: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--color-peter-river);
+            cursor: grab;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+            transition: background 0.2s, transform 0.2s;
+        }
+
+        .slider::-webkit-slider-thumb:active {
+            cursor: grabbing;
+            transform: scale(1.1);
+        }
+
+        /* Note: 'darken' is a Sass function. For pure CSS, you'd define a new color variable */
+        /* .slider:hover::-webkit-slider-thumb {
+            background: darken(var(--color-peter-river), 10%);
+        } */
+
+        .brush-preview {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: var(--color-text-light); /* Will be updated by JS */
+            margin: 15px auto 0;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        /* Action Buttons */
+        .action-button {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: var(--color-text-light);
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: background-color 0.2s ease-in-out, transform 0.1s ease-out;
+            width: 100%;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .action-button:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .action-button:active {
+            transform: translateY(0);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3) inset;
+        }
+
+        .action-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background-color: rgba(255, 255, 255, 0.05);
+            transform: none;
+            box-shadow: none;
+        }
+
+        .clear-button {
+            background-color: var(--color-alizarin-red);
+        }
+
+        /* Note: 'darken' is a Sass function. For pure CSS, you'd define a new color variable */
+        /* .clear-button:hover {
+            background-color: darken(var(--color-alizarin-red), 10%);
+        } */
+
+        /* Canvas Container */
+        .canvas-container {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: var(--color-white);
+            padding: 20px;
+            box-sizing: border-box;
+            position: relative;
+        }
+
+        #drawingCanvas {
+            background-color: var(--color-white);
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+            cursor: crosshair;
+            touch-action: none; /* Prevent browser touch actions like scrolling */
+        }
+
+        /* Responsive Design */
+        @media (max-width: 900px) {
+            .app-container {
+                flex-direction: column;
+                width: 100vw;
+                height: 100vh;
+                border-radius: 0;
+                transform: none;
+            }
+
+            .app-container:hover {
+                transform: none;
+            }
+
+            .control-panel {
+                width: 100%;
+                padding: 20px 15px;
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: space-around;
+                gap: 15px;
+            }
+
+            .control-panel::after {
+                display: none;
+            }
+
+            .app-title {
+                width: 100%;
+                margin-bottom: 15px;
+            }
+
+            .tool-section {
+                width: 45%; /* Two columns */
+                margin-bottom: 0;
+                padding-bottom: 0;
+                border-bottom: none;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .tool-section h3 {
+                text-align: center;
+                width: 100%;
+            }
+
+            .color-palette, .brush-tools, .actions {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .canvas-container {
+                padding: 10px;
+                min-height: 50vh; /* Ensure canvas has enough height */
+            }
+
+            #drawingCanvas {
+                border-radius: 0;
+            }
+        }
+
+        @media (max-width: 500px) {
+            .control-panel {
+                flex-direction: column;
+                gap: 10px;
+                padding: 15px 10px;
+            }
+
+            .tool-section {
+                width: 90%; /* One column */
+                align-items: stretch;
+            }
+
+            .color-palette {
+                justify-content: center;
+            }
+
+            .action-button {
+                padding: 10px 15px;
+                font-size: 0.9em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="control-panel">
+            <h1 class="app-title">ArtFlow</h1>
+
+            <div class="tool-section color-tools">
+                <h3>Colors</h3>
+                <div class="color-palette">
+                    <div class="color-box active" data-color="#000000" style="background-color: #000000;" title="Black"></div>
+                    <div class="color-box" data-color="#2C3E50" style="background-color: #2C3E50;" title="Dark Navy"></div>
+                    <div class="color-box" data-color="#3498DB" style="background-color: #3498DB;" title="Peter River Blue"></div>
+                    <div class="color-box" data-color="#E74C3C" style="background-color: #E74C3C;" title="Alizarin Red"></div>
+                    <div class="color-box" data-color="#27AE60" style="background-color: #27AE60;" title="Emerald Green"></div>
+                    <div class="color-box" data-color="#F1C40F" style="background-color: #F1C40F;" title="Sunflower Yellow"></div>
+                    <div class="color-box" data-color="#8E44AD" style="background-color: #8E44AD;" title="Amethyst"></div>
+                </div>
+                <input type="color" id="colorPicker" class="color-picker" value="#000000" title="Custom Color">
+            </div>
+
+            <div class="tool-section brush-tools">
+                <h3>Brush Size</h3>
+                <div class="brush-size-display">
+                    <span id="brushSizeValue">5</span>px
+                </div>
+                <input type="range" id="brushSize" min="1" max="50" value="5" class="slider" title="Adjust Brush Size">
+                <div class="brush-preview" id="brushPreview" style="background-color: currentColor;"></div>
+            </div>
+
+            <div class="tool-section actions">
+                <h3>Actions</h3>
+                <button id="clearCanvas" class="action-button clear-button" title="Clear Canvas">
+                    <i class="fas fa-trash-alt"></i> Clear
+                </button>
+                <button id="undo" class="action-button" title="Undo Last Stroke" disabled>
+                    <i class="fas fa-undo"></i> Undo
+                </button>
+                <button id="redo" class="action-button" title="Redo Last Stroke" disabled>
+                    <i class="fas fa-redo"></i> Redo
+                </button>
+                <button id="downloadImage" class="action-button" title="Download Image">
+                    <i class="fas fa-download"></i> Save
+                </button>
+            </div>
+        </aside>
+
+        <main class="canvas-container">
+            <canvas id="drawingCanvas"></canvas>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('drawingCanvas');
+            const ctx = canvas.getContext('2d');
+            const colorPalette = document.querySelector('.color-palette');
+            const colorPicker = document.getElementById('colorPicker');
+            const brushSizeSlider = document.getElementById('brushSize');
+            const brushSizeValueSpan = document.getElementById('brushSizeValue');
+            const brushPreview = document.getElementById('brushPreview');
+            const clearCanvasBtn = document.getElementById('clearCanvas');
+            const undoBtn = document.getElementById('undo');
+            const redoBtn = document.getElementById('redo');
+            const downloadImageBtn = document.getElementById('downloadImage');
+
+            let isDrawing = false;
+            let currentColor = '#000000'; // Default color
+            let currentBrushSize = 5;      // Default brush size
+            let drawingData = []; // Stores drawing strokes for undo/redo
+            let drawingDataIndex = -1; // Current state in drawingData
+
+            // --- Initialization ---
+            function initCanvas() {
+                // Set canvas dimensions based on parent container
+                const container = canvas.parentElement;
+                canvas.width = container.clientWidth - 40; // Account for padding
+                canvas.height = container.clientHeight - 40; // Account for padding
+
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.strokeStyle = currentColor;
+                ctx.lineWidth = currentBrushSize;
+
+                // Load initial state if any
+                if (drawingData.length > 0 && drawingDataIndex !== -1) {
+                    redrawCanvas();
+                } else {
+                    // Fill canvas with white background on init or clear
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    saveState(); // Save the initial blank state
+                }
+                updateBrushPreview();
+            }
+
+            // --- Drawing Logic ---
+            function startDrawing(e) {
+                isDrawing = true;
+                ctx.beginPath();
+                const { x, y } = getEventCoords(e);
+                ctx.moveTo(x, y);
+            }
+
+            function draw(e) {
+                if (!isDrawing) return;
+                const { x, y } = getEventCoords(e);
+                ctx.lineTo(x, y);
+                ctx.stroke();
+            }
+
+            function stopDrawing() {
+                if (!isDrawing) return;
+                isDrawing = false;
+                ctx.closePath();
+                saveState();
+            }
+
+            function getEventCoords(e) {
+                const rect = canvas.getBoundingClientRect();
+                let clientX, clientY;
+
+                if (e.touches && e.touches.length > 0) {
+                    clientX = e.touches[0].clientX;
+                    clientY = e.touches[0].clientY;
+                } else {
+                    clientX = e.clientX;
+                    clientY = e.clientY;
+                }
+
+                return {
+                    x: clientX - rect.left,
+                    y: clientY - rect.top
+                };
+            }
+
+            // --- Tool Functions ---
+            function setColor(color) {
+                currentColor = color;
+                ctx.strokeStyle = currentColor;
+                colorPicker.value = currentColor; // Update picker if color box clicked
+                updateBrushPreview();
+
+                // Update active class on color boxes
+                document.querySelectorAll('.color-box').forEach(box => {
+                    box.classList.remove('active');
+                    if (box.dataset.color === color) {
+                        box.classList.add('active');
+                    }
+                });
+            }
+
+            function setBrushSize(size) {
+                currentBrushSize = size;
+                ctx.lineWidth = currentBrushSize;
+                brushSizeValueSpan.textContent = size;
+                updateBrushPreview();
+            }
+
+            function updateBrushPreview() {
+                brushPreview.style.width = `${currentBrushSize + 10}px`; // Add padding to make it visible
+                brushPreview.style.height = `${currentBrushSize + 10}px`;
+                brushPreview.style.backgroundColor = currentColor;
+            }
+
+            function clearCanvas() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                // Ensure canvas background is white after clearing
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                drawingData = []; // Clear history
+                drawingDataIndex = -1;
+                saveState(); // Save the new blank state
+                updateUndoRedoButtons();
+            }
+
+            // --- Undo/Redo Logic ---
+            function saveState() {
+                // Clear any redoable states if a new drawing is made
+                if (drawingDataIndex < drawingData.length - 1) {
+                    drawingData = drawingData.slice(0, drawingDataIndex + 1);
+                }
+                drawingData.push(canvas.toDataURL());
+                drawingDataIndex++;
+                updateUndoRedoButtons();
+            }
+
+            function undo() {
+                if (drawingDataIndex > 0) {
+                    drawingDataIndex--;
+                    redrawCanvas();
+                }
+                updateUndoRedoButtons();
+            }
+
+            function redo() {
+                if (drawingDataIndex < drawingData.length - 1) {
+                    drawingDataIndex++;
+                    redrawCanvas();
+                }
+                updateUndoRedoButtons();
+            }
+
+            function redrawCanvas() {
+                if (drawingDataIndex >= 0 && drawingData[drawingDataIndex]) {
+                    const img = new Image();
+                    img.src = drawingData[drawingDataIndex];
+                    img.onload = () => {
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                        // Fill with white background before drawing the image
+                        ctx.fillStyle = '#FFFFFF';
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    };
+                } else if (drawingDataIndex === -1) {
+                    // If we've undone to the very first (blank) state
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                }
+            }
+
+            function updateUndoRedoButtons() {
+                undoBtn.disabled = drawingDataIndex <= 0; // Disable undo if at the first state (blank canvas)
+                redoBtn.disabled = drawingDataIndex >= drawingData.length - 1;
+            }
+
+            // --- Download Image ---
+            function downloadImage() {
+                const link = document.createElement('a');
+                link.download = 'my-artflow-drawing.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            }
+
+            // --- Event Listeners ---
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseout', stopDrawing); // Stop drawing if mouse leaves canvas
+
+            // Touch events for mobile
+            canvas.addEventListener('touchstart', startDrawing, { passive: true });
+            canvas.addEventListener('touchmove', draw, { passive: true });
+            canvas.addEventListener('touchend', stopDrawing);
+            canvas.addEventListener('touchcancel', stopDrawing);
+
+            colorPalette.addEventListener('click', (e) => {
+                if (e.target.classList.contains('color-box')) {
+                    setColor(e.target.dataset.color);
+                }
+            });
+
+            colorPicker.addEventListener('input', (e) => {
+                setColor(e.target.value);
+                // Remove active class from color boxes if custom color is picked
+                document.querySelectorAll('.color-box').forEach(box => box.classList.remove('active'));
+            });
+
+            brushSizeSlider.addEventListener('input', (e) => {
+                setBrushSize(parseInt(e.target.value));
+            });
+
+            clearCanvasBtn.addEventListener('click', clearCanvas);
+            undoBtn.addEventListener('click', undo);
+            redoBtn.addEventListener('click', redo);
+            downloadImageBtn.addEventListener('click', downloadImage);
+
+            // Responsive Canvas
+            window.addEventListener('resize', initCanvas);
+
+            // Initial setup
+            initCanvas();
+        });
+    </script>
+</body>
+</html>
