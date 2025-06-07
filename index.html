@@ -59,6 +59,7 @@
             gap: 25px;
             position: relative;
             z-index: 10;
+            transition: transform 0.3s ease-in-out; /* For mobile slide effect */
         }
 
         .control-panel::after {
@@ -192,11 +193,7 @@
             transform: scale(1.1);
         }
 
-        /* Note: 'darken' is a Sass function. For pure CSS, you'd define a new color variable */
-        /* .slider:hover::-webkit-slider-thumb {
-            background: darken(var(--color-peter-river), 10%);
-        } */
-
+        /* Brush Preview */
         .brush-preview {
             width: 50px;
             height: 50px;
@@ -251,11 +248,6 @@
             background-color: var(--color-alizarin-red);
         }
 
-        /* Note: 'darken' is a Sass function. For pure CSS, you'd define a new color variable */
-        /* .clear-button:hover {
-            background-color: darken(var(--color-alizarin-red), 10%);
-        } */
-
         /* Canvas Container */
         .canvas-container {
             flex-grow: 1;
@@ -276,6 +268,32 @@
             touch-action: none; /* Prevent browser touch actions like scrolling */
         }
 
+        /* Mobile Menu Button */
+        .mobile-menu-button {
+            display: none; /* Hidden on desktop */
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: var(--color-dark-navy);
+            color: var(--color-peter-river);
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 1.5em;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            z-index: 100; /* Ensure it's above canvas */
+            transition: background-color 0.2s;
+        }
+
+        .mobile-menu-button:hover {
+            background-color: #1f2a37; /* Slightly darker dark navy */
+        }
+
         /* Responsive Design */
         @media (max-width: 900px) {
             .app-container {
@@ -290,80 +308,99 @@
                 transform: none;
             }
 
+            /* Mobile Control Panel - Hidden by default, slides in */
             .control-panel {
-                width: 100%;
+                position: fixed; /* Overlay the content */
+                top: 0;
+                left: 0;
+                width: 70%; /* Takes up 70% of screen width */
+                height: 100%;
+                transform: translateX(-100%); /* Start off-screen */
                 padding: 20px 15px;
-                flex-direction: row;
-                flex-wrap: wrap;
-                justify-content: space-around;
-                gap: 15px;
+                box-shadow: 2px 0 10px rgba(0,0,0,0.3);
+                overflow-y: auto; /* Enable scrolling for tools if many */
+            }
+
+            .control-panel.active {
+                transform: translateX(0); /* Slide in */
             }
 
             .control-panel::after {
-                display: none;
+                display: none; /* Remove the skewed border on mobile */
             }
 
             .app-title {
                 width: 100%;
                 margin-bottom: 15px;
+                text-align: left; /* Adjust title alignment for mobile panel */
             }
 
             .tool-section {
-                width: 45%; /* Two columns */
-                margin-bottom: 0;
-                padding-bottom: 0;
+                width: 100%; /* Full width within the panel */
+                margin-bottom: 15px;
+                padding-bottom: 15px;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            }
+            .tool-section:last-child {
                 border-bottom: none;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
             }
 
             .tool-section h3 {
-                text-align: center;
-                width: 100%;
-            }
-
-            .color-palette, .brush-tools, .actions {
-                width: 100%;
-                justify-content: center;
-            }
-
-            .canvas-container {
-                padding: 10px;
-                min-height: 50vh; /* Ensure canvas has enough height */
-            }
-
-            #drawingCanvas {
-                border-radius: 0;
-            }
-        }
-
-        @media (max-width: 500px) {
-            .control-panel {
-                flex-direction: column;
-                gap: 10px;
-                padding: 15px 10px;
-            }
-
-            .tool-section {
-                width: 90%; /* One column */
-                align-items: stretch;
+                text-align: left;
             }
 
             .color-palette {
-                justify-content: center;
+                justify-content: flex-start; /* Align colors to start */
             }
 
-            .action-button {
-                padding: 10px 15px;
-                font-size: 0.9em;
+            .canvas-container {
+                padding: 0; /* No padding, canvas takes full space */
+                min-height: 100vh; /* Canvas gets full viewport height */
+                width: 100vw;
+            }
+
+            #drawingCanvas {
+                border-radius: 0; /* Full screen canvas */
+                width: 100vw;
+                height: 100vh;
+            }
+
+            .mobile-menu-button {
+                display: flex; /* Show menu button on mobile */
+            }
+        }
+
+        /* Overlay for when menu is open */
+        .overlay {
+            display: none; /* Hidden by default */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent black */
+            z-index: 90; /* Below menu, above canvas */
+        }
+
+        .overlay.active {
+            display: block;
+        }
+
+        /* Adjustments for very small phones */
+        @media (max-width: 400px) {
+            .control-panel {
+                width: 85%; /* Slightly wider panel on very small screens */
             }
         }
     </style>
 </head>
 <body>
     <div class="app-container">
-        <aside class="control-panel">
+        <button class="mobile-menu-button" id="mobileMenuButton" title="Open Menu">
+            <i class="fas fa-bars"></i>
+        </button>
+
+        <aside class="control-panel" id="controlPanel">
             <h1 class="app-title">ArtFlow</h1>
 
             <div class="tool-section color-tools">
@@ -410,6 +447,7 @@
             <canvas id="drawingCanvas"></canvas>
         </main>
     </div>
+    <div class="overlay" id="menuOverlay"></div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -425,6 +463,10 @@
             const redoBtn = document.getElementById('redo');
             const downloadImageBtn = document.getElementById('downloadImage');
 
+            const mobileMenuButton = document.getElementById('mobileMenuButton');
+            const controlPanel = document.getElementById('controlPanel');
+            const menuOverlay = document.getElementById('menuOverlay');
+
             let isDrawing = false;
             let currentColor = '#000000'; // Default color
             let currentBrushSize = 5;      // Default brush size
@@ -435,8 +477,8 @@
             function initCanvas() {
                 // Set canvas dimensions based on parent container
                 const container = canvas.parentElement;
-                canvas.width = container.clientWidth - 40; // Account for padding
-                canvas.height = container.clientHeight - 40; // Account for padding
+                canvas.width = container.clientWidth;
+                canvas.height = container.clientHeight;
 
                 ctx.lineCap = 'round';
                 ctx.lineJoin = 'round';
@@ -457,6 +499,9 @@
 
             // --- Drawing Logic ---
             function startDrawing(e) {
+                // Prevent drawing if the mobile menu is open
+                if (controlPanel.classList.contains('active')) return;
+
                 isDrawing = true;
                 ctx.beginPath();
                 const { x, y } = getEventCoords(e);
@@ -509,6 +554,10 @@
                         box.classList.add('active');
                     }
                 });
+                // Automatically hide menu after color selection on mobile
+                if (window.innerWidth <= 900) {
+                    toggleMobileMenu();
+                }
             }
 
             function setBrushSize(size) {
@@ -533,6 +582,9 @@
                 drawingDataIndex = -1;
                 saveState(); // Save the new blank state
                 updateUndoRedoButtons();
+                if (window.innerWidth <= 900) {
+                    toggleMobileMenu(); // Hide menu after action
+                }
             }
 
             // --- Undo/Redo Logic ---
@@ -552,6 +604,9 @@
                     redrawCanvas();
                 }
                 updateUndoRedoButtons();
+                if (window.innerWidth <= 900) {
+                    toggleMobileMenu(); // Hide menu after action
+                }
             }
 
             function redo() {
@@ -560,6 +615,9 @@
                     redrawCanvas();
                 }
                 updateUndoRedoButtons();
+                if (window.innerWidth <= 900) {
+                    toggleMobileMenu(); // Hide menu after action
+                }
             }
 
             function redrawCanvas() {
@@ -592,6 +650,21 @@
                 link.download = 'my-artflow-drawing.png';
                 link.href = canvas.toDataURL('image/png');
                 link.click();
+                if (window.innerWidth <= 900) {
+                    toggleMobileMenu(); // Hide menu after action
+                }
+            }
+
+            // --- Mobile Menu Toggle ---
+            function toggleMobileMenu() {
+                controlPanel.classList.toggle('active');
+                menuOverlay.classList.toggle('active');
+                // Adjust z-index of mobile menu button to be above overlay when open
+                if (controlPanel.classList.contains('active')) {
+                    mobileMenuButton.style.zIndex = '101';
+                } else {
+                    mobileMenuButton.style.zIndex = '100';
+                }
             }
 
             // --- Event Listeners ---
@@ -626,6 +699,10 @@
             undoBtn.addEventListener('click', undo);
             redoBtn.addEventListener('click', redo);
             downloadImageBtn.addEventListener('click', downloadImage);
+
+            // Mobile menu event listeners
+            mobileMenuButton.addEventListener('click', toggleMobileMenu);
+            menuOverlay.addEventListener('click', toggleMobileMenu); // Close menu when clicking overlay
 
             // Responsive Canvas
             window.addEventListener('resize', initCanvas);
